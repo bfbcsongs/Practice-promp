@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Church Service Teleprompter</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    
+    :root {
+      --app-font: monospace;
+      --app-font-size: 0.95rem;
+      --app-line-height: 1.4;
+      --side-margin: 52px;
+    }
+
+    html, body { 
+      background-color: #000000; 
+      color: #f0f6fc; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; 
+      height: 100vh; 
+      height: 100dvh; 
+      width: 100vw;
+      overflow: hidden; 
+      user-select: none; 
+    }
+
+    #exit-toast {
+      position: fixed;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid #38bdf8;
+      color: #38bdf8;
+      padding: 0.6rem 1.2rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 800;
+      z-index: 9999;
+      display: none;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      pointer-events: none;
+    }
+
+    .app-view { display: none; height: 100vh; height: 100dvh; width: 100vw; position: absolute; top: 0; left: 0; }
+    .app-view.active { display: flex; }
+
+    /* HOME MENU */
+    #home-view {
+      background: radial-gradient(circle at top, #1e293b, #0f172a 80%);
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .home-card {
+      background: rgba(22, 27, 34, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 2.5rem 1.8rem;
+      width: 100%;
+      max-width: 440px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .home-badge {
+      background: rgba(56, 189, 248, 0.12);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+
+    .app-title {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, #f59e0b, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.2rem;
+    }
+
+    .author-tag {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #38bdf8;
+      letter-spacing: 1px;
+      margin-bottom: 0.6rem;
+      opacity: 0.9;
+    }
+
+    .app-subtitle { font-size: 0.85rem; color: #8b949e; margin-bottom: 2rem; }
+    .action-btn-group { display: flex; flex-direction: column; gap: 1rem; width: 100%; }
+
+    .btn-home-primary {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #0d1117;
+      border: none;
+      border-radius: 12px;
+      padding: 1rem;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      cursor: pointer;
+      text-transform: uppercase;
+      box-shadow: 0 8px 20px rgba(34, 197, 94, 0.25);
+    }
+
+    .btn-home-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f0f6fc;
+      border-radius: 12px;
+      padding: 0.85rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* SETUP VIEW */
+    #setup-view { flex-direction: column; padding: 1.5rem 1rem; max-width: 600px; margin: 0 auto; height: 100vh; height: 100dvh; overflow-y: auto; background: #0d1117; }
+    .setup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+    .playlist-title { font-size: 1.4rem; font-weight: 800; color: #f59e0b; text-transform: uppercase; letter-spacing: 1px; }
+    .btn-back-home { background: transparent; border: 1px solid #30363d; color: #8b949e; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+
+    .save-bar-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 0.8rem;
+      margin-bottom: 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .pm-save-group { display: flex; gap: 0.5rem; }
+    .pm-input { flex: 1; background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 0.5rem 0.8rem; color: #fff; font-size: 0.85rem; outline: none; }
+    .btn-pm-save { background: #38bdf8; color: #000; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; }
+    .btn-open-library { background: #21262d; border: 1px solid #30363d; color: #38bdf8; padding: 0.6rem; border-radius: 6px; font-weight: bold; font-size: 0.85rem; cursor: pointer; text-align: center; }
+
+    #playlists-view { flex-direction: column; padding: 1.5rem 1rem; max-width: 600px; margin: 0 auto; height: 100vh; height: 100dvh; width: 100vw; background: #0d1117; }
+    .library-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .library-title { font-size: 1.3rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 1px; }
+    .search-input { width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.75rem 1rem; color: #fff; font-size: 0.95rem; outline: none; margin-bottom: 1.2rem; }
+    .saved-list-container { display: flex; flex-direction: column; gap: 0.6rem; flex: 1; overflow-y: auto; }
+    .saved-item-row { display: flex; justify-content: space-between; align-items: center; background: #161b22; border: 1px solid #30363d; padding: 0.8rem 1rem; border-radius: 10px; }
+    .saved-item-name { color: #f0f6fc; font-weight: 700; }
+    .saved-item-actions { display: flex; gap: 0.4rem; }
+    .btn-item-load { background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.5); color: #22c55e; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
+    .btn-item-share { background: rgba(56, 189, 248, 0.2); border: 1px solid rgba(56, 189, 248, 0.5); color: #38bdf8; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
+    .btn-item-delete { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #ef4444; padding: 0.4rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
+
+    .playlist-container { display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1.2rem; }
+    .cat-accordion-box { background: #161b22; border: 1px solid #30363d; border-radius: 12px; overflow: hidden; }
+    .cat-accordion-box.open { border-color: #38bdf8; }
+    .outline-cat-row { padding: 1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: #161b22; }
+    .cat-name-group { display: flex; align-items: center; gap: 0.8rem; font-weight: bold; font-size: 1.05rem; color: #f0f6fc; }
+    .cat-right-controls { display: flex; align-items: center; gap: 0.8rem; }
+    .cat-speed-setup { display: flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; color: #38bdf8; }
+    .cat-speed-setup input { width: 45px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #fff; padding: 0.2rem; text-align: center; }
+    .expand-arrow { color: #8b949e; font-size: 0.8rem; transition: transform 0.2s; }
+    .cat-accordion-box.open .expand-arrow { transform: rotate(180deg); color: #38bdf8; }
+
+    .sub-icons-drawer { display: none; grid-template-columns: repeat(6, 1fr); gap: 0.5rem; padding: 0.8rem 1rem; background: #0d1117; border-top: 1px solid #21262d; }
+    .cat-accordion-box.open .sub-icons-drawer { display: grid; }
+    .sub-icon-btn { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.6rem 0.2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem; cursor: pointer; }
+    .sub-icon-btn.has-content .sub-label { color: #22c55e; }
+    .btn-start { background: #22c55e; color: #000; border: none; padding: 1rem 1.5rem; font-size: 1rem; font-weight: bold; border-radius: 10px; cursor: pointer; margin-bottom: 2rem; align-self: stretch; text-align: center; }
+
+    /* EDITOR VIEW */
+    #edit-single-view { display: none; flex-direction: column; padding: 0.8rem 0; height: 100vh; height: 100dvh; width: 100vw; background: #0d1117; box-sizing: border-box; }
+    #edit-single-view.active { display: flex; }
+    .editor-top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; padding: 0 1rem 0.5rem 1rem; border-bottom: 1px solid #21262d; flex-shrink: 0; gap: 0.3rem; width: 100%; }
+    .editor-title { font-size: 0.8rem; font-weight: 800; color: #f0f6fc; display: flex; align-items: center; gap: 0.2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 32%; }
+    .editor-actions { display: flex; gap: 0.3rem; align-items: center; flex-shrink: 0; }
+    .btn-editor-back { background: #21262d; border: 1px solid #30363d; color: #f0f6fc; padding: 0.4rem 0.5rem; border-radius: 6px; font-weight: bold; font-size: 0.75rem; cursor: pointer; }
+    .btn-editor-save { background: #22c55e; border: none; color: #000; padding: 0.4rem 0.7rem; border-radius: 6px; font-weight: 800; font-size: 0.75rem; cursor: pointer; }
+    .editor-body { flex: 1; display: flex; flex-direction: column; min-height: 0; width: 100%; }
+    
+    .fullscreen-textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      background: #000000;
+      border: none;
+      padding: 1rem var(--side-margin);
+      color: #ffffff;
+      font-family: var(--app-font);
+      font-size: var(--app-font-size);
+      line-height: var(--app-line-height);
+      font-weight: bold;
+      white-space: pre-wrap;
+      word-break: break-word;
+      resize: none;
+      outline: none;
+      box-sizing: border-box;
+    }
+
+    /* STAGE VIEWPORT & CONTROLS */
+    #stage-view { height: 100vh; height: 100dvh; width: 100vw; position: relative; background: #000; overflow: hidden; }
+
+    /* TOP PROMPTER BAR (KEY & SPEED ONLY) */
+    .prompter-top-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 90;
+      background: rgba(22, 27, 34, 0.9);
+      backdrop-filter: blur(8px);
+      padding: 0.4rem 0.8rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .speed-ctrl-container, .transpose-ctrl-container {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+      background: #161b22;
+      border: 1px solid #30363d;
+      padding: 0.15rem 0.35rem;
+      border-radius: 6px;
+    }
+    .speed-ctrl-container label { font-size: 0.65rem; font-weight: bold; color: #38bdf8; }
+    .transpose-ctrl-container label { font-size: 0.65rem; font-weight: bold; color: #f59e0b; }
+    .speed-btn { background: #30363d; color: #fff; border: none; width: 22px; height: 22px; font-size: 0.75rem; font-weight: bold; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .speed-input { width: 32px; background: #0d1117; border: 1px solid #30363d; border-radius: 4px; color: #38bdf8; text-align: center; font-weight: bold; font-size: 0.75rem; padding: 0.1rem; }
+    .transpose-val { font-size: 0.75rem; font-weight: bold; color: #f59e0b; width: 20px; text-align: center; }
+
+    /* BOTTOM CONTROL BAR WITH INTEGRATED AUDIO */
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(10px);
+      padding: 0.5rem 0.6rem;
+      border-top: 1px solid rgba(56, 189, 248, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+
+    .audio-timeline-box {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      width: 100%;
+    }
+
+    .audio-seekbar {
+      flex: 1;
+      height: 6px;
+      accent-color: #38bdf8;
+      cursor: pointer;
+    }
+
+    .audio-time-stamp {
+      font-size: 0.75rem;
+      color: #8b949e;
+      font-weight: 700;
+      min-width: 35px;
+      text-align: center;
+    }
+
+    .bottom-action-buttons {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.4rem;
+      width: 100%;
+    }
+
+    .bottom-action-buttons button {
+      flex: 1;
+      padding: 0.55rem 0.4rem;
+      font-weight: 800;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .btn-back-stage {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+    }
+
+    .audio-btn {
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+      color: #38bdf8;
+    }
+
+    .audio-btn.playing {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: #f59e0b;
+    }
+
+    .side-nav-left {
+      position: fixed;
+      left: 0;
+      top: 45px;
+      bottom: 95px;
+      width: 45px;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      pointer-events: none;
+    }
+    .bg-btn-left {
+      pointer-events: auto;
+      background: transparent;
+      border: none;
+      color: #f59e0b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    .bg-btn-left .label-side { font-size: 0.7rem; font-weight: bold; z-index: 2; text-shadow: 0 1px 3px #000; }
+    .bg-btn-left .big-icon { position: absolute; left: 2px; font-size: 1.8rem; opacity: 0.15; z-index: 1; pointer-events: none; }
+    .bg-btn-left.active .big-icon { opacity: 0.45; filter: drop-shadow(0 0 6px #f59e0b); }
+
+    .side-nav-right {
+      position: fixed;
+      right: 0;
+      top: 45px;
+      bottom: 95px;
+      width: 45px;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      pointer-events: none;
+    }
+    .bg-btn-right {
+      pointer-events: auto;
+      background: transparent;
+      border: none;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    .bg-btn-right .label-side { font-size: 0.7rem; font-weight: bold; z-index: 2; text-shadow: 0 1px 3px #000; }
+    .bg-btn-right .big-icon { position: absolute; right: 2px; font-size: 1.8rem; opacity: 0.15; z-index: 1; pointer-events: none; }
+    .bg-btn-right.active .big-icon { opacity: 0.45; filter: drop-shadow(0 0 6px #38bdf8); }
+
+    /* PROMPTER VIEWPORT */
+    .prompter-viewport { 
+      height: 100vh; 
+      height: 100dvh; 
+      width: 100vw;
+      overflow-y: scroll; 
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch; 
+      padding: 35vh var(--side-margin) 100vh var(--side-margin); 
+      position: relative; 
+      z-index: 10; 
+      touch-action: pan-y; 
+      box-sizing: border-box;
+    }
+    .prompter-viewport::-webkit-scrollbar { display: none; }
+
+    .section-block { 
+      width: 100%; 
+      margin: 0 auto 3.5rem auto; 
+      font-family: var(--app-font); 
+      text-align: left; 
+      box-sizing: border-box;
+    }
+
+    .tag-container { display: flex; justify-content: center; gap: 0.4rem; margin-bottom: 0.8rem; }
+    .section-tag { display: inline-block; background: rgba(48, 54, 61, 0.85); color: #38bdf8; padding: 0.25rem 0.7rem; border-radius: 4px; font-weight: bold; font-size: 0.8rem; }
+    .sub-tag { background: rgba(245, 158, 11, 0.9); color: #000; }
+    
+    .script-text { 
+      font-size: var(--app-font-size); 
+      line-height: var(--app-line-height); 
+      font-weight: bold; 
+      white-space: pre-wrap; 
+      word-break: break-word; 
+      color: #ffffff; 
+      text-shadow: 0 2px 6px rgba(0,0,0,0.9); 
+      text-align: left; 
+      display: block; 
+      width: 100%; 
+    }
+    .chord-line { color: #f59e0b; font-weight: 800; text-shadow: 0 2px 8px rgba(245, 158, 11, 0.4); }
+  </style>
+</head>
+<body>
+
+  <!-- HIDDEN AUDIO PLAYER & FILE PICKER -->
+  <audio id="local-audio-player" style="display:none;"></audio>
+  <input type="file" id="audio-file-input" style="display:none;" onchange="handleAudioFileSelect(event)" />
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="exit-toast">Double tap back button to exit</div>
+
+  <!-- HOME VIEW -->
+  <div id="home-view" class="app-view active">
+    <div class="home-card">
+      <div class="home-badge">Live Console v1.0</div>
+      <h1 class="app-title">PROMPTER</h1>
+      <div class="author-tag">@paulmartinez</div>
+      <p class="app-subtitle">Church Worship & Speech Suite</p>
+      <div class="action-btn-group">
+        <button class="btn-home-primary" onclick="showView('stage-view'); startPrompter();">▶ Launch Live Stage</button>
+        <button class="btn-home-secondary" onclick="showView('setup-view');">⚙ Edit Service Setup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETUP VIEW -->
+  <div id="setup-view" class="app-view">
+    <div class="setup-header">
+      <span class="playlist-title">Play List</span>
+      <button class="btn-back-home" onclick="showView('home-view')">← Home</button>
+    </div>
+    <div class="save-bar-card">
+      <div class="pm-save-group">
+        <input type="text" id="playlist-name-input" class="pm-input" placeholder="Save current setup name..." />
+        <button class="btn-pm-save" onclick="saveCurrentPlaylist()">SAVE</button>
+      </div>
+      <button class="btn-open-library" onclick="openLibraryView()">📁 Saved Playlists (Library)</button>
+    </div>
+    <div id="categories-container" class="playlist-container"></div>
+    <button class="btn-start" onclick="startPrompter()">Launch Live Prompter</button>
+  </div>
+
+  <!-- SAVED PLAYLISTS LIBRARY VIEW -->
+  <div id="playlists-view" class="app-view">
+    <div class="library-header">
+      <span class="library-title">Playlist Folder</span>
+      <button class="btn-back-home" onclick="showView('setup-view')">← Back to Setup</button>
+    </div>
+    <input type="text" id="library-search-input" class="search-input" placeholder="🔍 Search playlist..." oninput="renderSavedPlaylists()" />
+    <div id="saved-playlists-list" class="saved-list-container"></div>
+  </div>
+
+  <!-- SINGLE EDITOR VIEW -->
+  <div id="edit-single-view" class="app-view">
+    <div class="editor-top-bar">
+      <div class="editor-title">
+        <span id="editor-cat-title">Joyful</span>
+        <span>➔</span>
+        <span id="editor-sub-title" class="sub-highlight">INTRO</span>
+      </div>
+      <div class="editor-actions">
+        <div class="transpose-ctrl-container">
+          <label>KEY</label>
+          <button class="speed-btn" onclick="transposeCategoryInEditor(-1)">-</button>
+          <button class="speed-btn" onclick="transposeCategoryInEditor(1)">+</button>
+        </div>
+        <button class="btn-editor-back" onclick="cancelSingleEdit()">BACK</button>
+        <button class="btn-editor-save" onclick="saveSingleEdit()">SAVE</button>
+      </div>
+    </div>
+    <div class="editor-body">
+      <textarea id="single-textarea" class="fullscreen-textarea" placeholder="Enter lyrics or chords here..."></textarea>
+    </div>
+  </div>
+
+  <!-- STAGE / LIVE VIEW -->
+  <div id="stage-view" class="app-view">
+    
+    <!-- TOP PROMPTER BAR (KEY & SPEED) -->
+    <div class="prompter-top-bar">
+      <div class="transpose-ctrl-container">
+        <label>KEY</label>
+        <button class="speed-btn" onclick="changeTranspose(-1)">-</button>
+        <span id="transpose-val-display" class="transpose-val">0</span>
+        <button class="speed-btn" onclick="changeTranspose(1)">+</button>
+      </div>
+
+      <div class="speed-ctrl-container">
+        <label>SPEED</label>
+        <button class="speed-btn" onclick="changeSpeed(-1)">-</button>
+        <input type="number" id="live-speed-num" class="speed-input" value="35" min="1" max="200" onchange="setDirectSpeed(this.value)" />
+        <button class="speed-btn" onclick="changeSpeed(1)">+</button>
+      </div>
+    </div>
+
+    <div class="side-nav-left" id="sub-btn-group"></div>
+    <div class="side-nav-right" id="main-btn-group"></div>
+    
+    <div class="prompter-viewport" id="viewport">
+      <div id="display-container"></div>
+    </div>
+
+    <!-- BOTTOM BAR WITH AUDIO TIMELINE & CONTROLS -->
+    <div class="bottom-bar">
+      <div class="audio-timeline-box">
+        <span id="audio-time-current" class="audio-time-stamp">0:00</span>
+        <input type="range" id="audio-seekbar" class="audio-seekbar" value="0" min="0" step="0.1" oninput="userSeekAudio(this.value)" />
+        <span id="audio-time-total" class="audio-time-stamp">0:00</span>
+      </div>
+      <div class="bottom-action-buttons">
+        <button class="btn-back-stage" onclick="stopPrompter()">Back</button>
+        <button class="audio-btn" onclick="triggerAudioSelect()">🎵 Load Audio</button>
+        <button id="btn-top-audio-toggle" class="audio-btn" onclick="toggleAudioPlayback()">▶ Audio Play</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let MAIN_CATS = [
+      { id: 2, name: "Joyful", short: "JOY", icon: "⚡", speed: 35 },
+      { id: 3, name: "Solemn", short: "SOLM", icon: "🙏", speed: 25 },
+      { id: 1, name: "Welcoming", short: "WELC", icon: "👋", speed: 30 },
+      { id: 4, name: "Offering", short: "OFFR", icon: "🪙", speed: 30 },
+      { id: 5, name: "Closing", short: "CLOS", icon: "⛪", speed: 30 },
+      { id: 6, name: "Others", short: "OTHR", icon: "🎵", speed: 30 }
+    ];
+
+    let SUB_SECTIONS = [
+      { id: "INTRO", name: "INTRO", icon: "▶" },
+      { id: "V1", name: "V1", icon: "1️⃣" },
+      { id: "V2", name: "V2", icon: "2️⃣" },
+      { id: "CH", name: "CH", icon: "🎶" },
+      { id: "BR", name: "BR", icon: "🌉" },
+      { id: "AD", name: "AD", icon: "✨" }
+    ];
+
+    let categoryData = {};
+    MAIN_CATS.forEach(cat => {
+      categoryData[cat.id] = {};
+      SUB_SECTIONS.forEach(sub => {
+        categoryData[cat.id][sub.id] = "";
+      });
+    });
+
+    let currentEditingCatId = null;
+    let currentEditingSubId = null;
+
+    let isPlaying = false;
+    let scrollInterval = null;
+    let activeMainId = 2;
+    let currentSpeed = 35;
+    let transposeSteps = 0;
+
+    let touchStartY = 0;
+    let wasPlayingOnTouch = false;
+    let isSwiping = false;
+
+    // AUDIO MANAGEMENT
+    const audioPlayer = document.getElementById('local-audio-player');
+    const audioSeekBar = document.getElementById('audio-seekbar');
+    const timeCurrentEl = document.getElementById('audio-time-current');
+    const timeTotalEl = document.getElementById('audio-time-total');
+    let categoryAudioTracks = {}; 
+    let hasAudioTrack = false;
+
+    function triggerAudioSelect() {
+      document.getElementById('audio-file-input').click();
+    }
+
+    function handleAudioFileSelect(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const validAudioTypes = ['audio/', '.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.opus'];
+      const isValid = validAudioTypes.some(type => 
+        file.type.startsWith('audio/') || file.name.toLowerCase().endsWith(type)
+      );
+
+      if (!isValid) {
+        alert('Please select a valid audio file (.mp3, .m4a, .wav, etc.)');
+        event.target.value = '';
+        return;
+      }
+
+      const audioUrl = URL.createObjectURL(file);
+      categoryAudioTracks[activeMainId] = audioUrl;
+      loadAudioForCategory(activeMainId);
+    }
+
+    function loadAudioForCategory(catId) {
+      const toggleBtn = document.getElementById('btn-top-audio-toggle');
+      const trackUrl = categoryAudioTracks[catId];
+
+      audioPlayer.pause();
+      toggleBtn.classList.remove('playing');
+      toggleBtn.textContent = '▶ Audio Play';
+
+      if (trackUrl) {
+        audioPlayer.src = trackUrl;
+        hasAudioTrack = true;
+      } else {
+        audioPlayer.src = '';
+        hasAudioTrack = false;
+        audioSeekBar.value = 0;
+        timeCurrentEl.textContent = '0:00';
+        timeTotalEl.textContent = '0:00';
+      }
+    }
+
+    function toggleAudioPlayback() {
+      const toggleBtn = document.getElementById('btn-top-audio-toggle');
+      if (!hasAudioTrack) {
+        alert('Please load an audio file for this category first.');
+        return;
+      }
+
+      if (audioPlayer.paused) {
+        audioPlayer.play().then(() => {
+          toggleBtn.classList.add('playing');
+          toggleBtn.textContent = '⏸ Audio Pause';
+        }).catch(() => {});
+      } else {
+        audioPlayer.pause();
+        toggleBtn.classList.remove('playing');
+        toggleBtn.textContent = '▶ Audio Play';
+      }
+    }
+
+    function userSeekAudio(val) {
+      if (!hasAudioTrack) return;
+      audioPlayer.currentTime = val;
+    }
+
+    audioPlayer.addEventListener('loadedmetadata', () => {
+      audioSeekBar.max = audioPlayer.duration;
+      timeTotalEl.textContent = formatTime(audioPlayer.duration);
+    });
+
+    audioPlayer.addEventListener('timeupdate', () => {
+      audioSeekBar.value = audioPlayer.currentTime;
+      timeCurrentEl.textContent = formatTime(audioPlayer.currentTime);
+    });
+
+    audioPlayer.addEventListener('ended', () => {
+      const toggleBtn = document.getElementById('btn-top-audio-toggle');
+      toggleBtn.classList.remove('playing');
+      toggleBtn.textContent = '▶ Audio Play';
+    });
+
+    function formatTime(seconds) {
+      if (isNaN(seconds)) return "0:00";
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    // UNIVERSAL DOUBLE-TAP EXIT & AUTO-SAVE
+    let lastBackTapTime = 0;
+    let toastTimeout = null;
+
+    window.history.pushState({ page: 'app' }, '');
+
+    window.addEventListener('popstate', function(e) {
+      const now = Date.now();
+      autoSaveActiveState();
+
+      if (now - lastBackTapTime < 2000) {
+        window.history.back();
+      } else {
+        lastBackTapTime = now;
+        e.preventDefault();
+        window.history.pushState({ page: 'app' }, '');
+        showExitToast();
+      }
+    });
+
+    function autoSaveActiveState() {
+      if (currentEditingCatId !== null && currentEditingSubId !== null) {
+        const val = document.getElementById('single-textarea').value;
+        if (!categoryData[currentEditingCatId]) categoryData[currentEditingCatId] = {};
+        categoryData[currentEditingCatId][currentEditingSubId] = val;
+      }
+      localStorage.setItem('church_prompter_autosave', JSON.stringify({
+        categoryData: categoryData,
+        mainCats: MAIN_CATS
+      }));
+    }
+
+    function loadAutoSavedState() {
+      try {
+        const saved = localStorage.getItem('church_prompter_autosave');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.categoryData) categoryData = parsed.categoryData;
+          if (parsed.mainCats) MAIN_CATS = parsed.mainCats;
+        }
+      } catch (e) {}
+    }
+
+    function showExitToast() {
+      const toast = document.getElementById('exit-toast');
+      if (!toast) return;
+      toast.style.display = 'block';
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.style.display = 'none';
+      }, 2000);
+    }
+
+    const viewport = document.getElementById('viewport');
+
+    const SCALE_SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const SCALE_FLATS  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+    function isChordLine(line) {
+      if (!line.trim()) return false;
+      const tokens = line.trim().split(/\s+/);
+      const chordPattern = /^([A-G][b#]?(m|maj|min|aug|dim|sus|add)?[0-9]?(\/[A-G][b#]?)?)$/i;
+      const chordCount = tokens.filter(t => chordPattern.test(t)).length;
+      return (chordCount / tokens.length) >= 0.7;
+    }
+
+    function transposeSingleChord(chord, steps) {
+      return chord.replace(/[A-G][b#]?/g, (match) => {
+        let index = SCALE_SHARPS.indexOf(match);
+        if (index === -1) index = SCALE_FLATS.indexOf(match);
+        if (index === -1) return match;
+        let newIndex = (index + steps) % 12;
+        if (newIndex < 0) newIndex += 12;
+        return SCALE_SHARPS[newIndex];
+      });
+    }
+
+    function transposeRawText(text, steps) {
+      if (!text) return '';
+      const lines = text.split('\n');
+      return lines.map(line => {
+        if (isChordLine(line)) {
+          return transposeSingleChord(line, steps);
+        }
+        return line;
+      }).join('\n');
+    }
+
+    function formatTextWithChords(text, steps) {
+      if (!text) return '';
+      const lines = text.split('\n');
+      return lines.map(line => {
+        if (isChordLine(line)) {
+          const transposed = steps !== 0 ? transposeSingleChord(line, steps) : line;
+          return `<span class="chord-line">${transposed}</span>`;
+        }
+        return line;
+      }).join('\n');
+    }
+
+    function changeTranspose(delta) {
+      transposeSteps += delta;
+      document.getElementById('transpose-val-display').textContent = (transposeSteps > 0 ? '+' : '') + transposeSteps;
+      renderCurrentCategoryText();
+    }
+
+    function transposeCategoryInEditor(delta) {
+      if (currentEditingCatId === null) return;
+
+      const currentText = document.getElementById('single-textarea').value;
+      if (currentEditingSubId) {
+        if (!categoryData[currentEditingCatId]) categoryData[currentEditingCatId] = {};
+        categoryData[currentEditingCatId][currentEditingSubId] = currentText;
+      }
+
+      SUB_SECTIONS.forEach(sub => {
+        const raw = categoryData[currentEditingCatId][sub.id];
+        if (raw && raw.trim().length > 0) {
+          categoryData[currentEditingCatId][sub.id] = transposeRawText(raw, delta);
+        }
+      });
+
+      if (currentEditingSubId) {
+        document.getElementById('single-textarea').value = categoryData[currentEditingCatId][currentEditingSubId] || '';
+      }
+    }
+
+    function applyLiveTransposeToCategoryText() {
+      if (transposeSteps === 0) return;
+      SUB_SECTIONS.forEach(sub => {
+        const raw = categoryData[activeMainId][sub.id];
+        if (raw && raw.trim().length > 0) {
+          categoryData[activeMainId][sub.id] = transposeRawText(raw, transposeSteps);
+        }
+      });
+      transposeSteps = 0;
+      document.getElementById('transpose-val-display').textContent = '0';
+    }
+
+    function showView(viewId) {
+      autoSaveActiveState();
+      document.querySelectorAll('.app-view').forEach(view => view.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+    }
+
+    function buildSetupUI() {
+      const container = document.getElementById('categories-container');
+      container.innerHTML = '';
+
+      MAIN_CATS.forEach((cat) => {
+        const box = document.createElement('div');
+        box.className = 'cat-accordion-box';
+        box.id = `cat-box-${cat.id}`;
+
+        let drawerHtml = '';
+        SUB_SECTIONS.forEach(sub => {
+          const hasText = categoryData[cat.id] && categoryData[cat.id][sub.id] && categoryData[cat.id][sub.id].trim().length > 0;
+          drawerHtml += `
+            <div class="sub-icon-btn ${hasText ? 'has-content' : ''}" onclick="event.stopPropagation(); openSingleEditor(${cat.id}, '${sub.id}')">
+              <span class="sub-emoji">${sub.icon}</span>
+              <span class="sub-label">${sub.id}</span>
+            </div>
+          `;
+        });
+
+        box.innerHTML = `
+          <div class="outline-cat-row" onclick="toggleCategoryAccordion(${cat.id})">
+            <div class="cat-name-group">
+              <span class="cat-icon-symbol">${cat.icon}</span>
+              <span>${cat.name}</span>
+            </div>
+            <div class="cat-right-controls">
+              <div class="cat-speed-setup" onclick="event.stopPropagation()">
+                <label>Speed:</label>
+                <input type="number" value="${cat.speed}" min="1" max="200" onchange="updateCategorySpeed(${cat.id}, this.value)" />
+              </div>
+              <span class="expand-arrow">▼</span>
+            </div>
+          </div>
+          <div class="sub-icons-drawer">${drawerHtml}</div>
+        `;
+        container.appendChild(box);
+      });
+    }
+
+    function toggleCategoryAccordion(catId) {
+      const box = document.getElementById(`cat-box-${catId}`);
+      if (box) box.classList.toggle('open');
+    }
+
+    function updateCategorySpeed(catId, val) {
+      const cat = MAIN_CATS.find(c => c.id === catId);
+      if (cat) cat.speed = Math.max(1, parseInt(val) || 30);
+    }
+
+    function openSingleEditor(catId, subId) {
+      currentEditingCatId = catId;
+      currentEditingSubId = subId;
+
+      const cat = MAIN_CATS.find(c => c.id === catId);
+      const sub = SUB_SECTIONS.find(s => s.id === subId);
+
+      document.getElementById('editor-cat-title').textContent = `${cat.icon} ${cat.name}`;
+      document.getElementById('editor-sub-title').textContent = `${sub.icon} ${sub.id}`;
+
+      const text = (categoryData[catId] && categoryData[catId][subId]) || '';
+      const textarea = document.getElementById('single-textarea');
+      textarea.value = text;
+
+      showView('edit-single-view');
+      setTimeout(() => textarea.focus(), 100);
+    }
+
+    function saveSingleEdit() {
+      if (currentEditingCatId !== null && currentEditingSubId !== null) {
+        const val = document.getElementById('single-textarea').value;
+        if(!categoryData[currentEditingCatId]) categoryData[currentEditingCatId] = {};
+        categoryData[currentEditingCatId][currentEditingSubId] = val;
+      }
+      autoSaveActiveState();
+      buildSetupUI();
+      showView('setup-view');
+    }
+
+    function cancelSingleEdit() { showView('setup-view'); }
+
+    function getStoredPlaylists() {
+      try { return JSON.parse(localStorage.getItem('church_prompter_playlists') || '{}'); } 
+      catch (e) { return {}; }
+    }
+
+    function saveCurrentPlaylist() {
+      const input = document.getElementById('playlist-name-input');
+      const name = input.value.trim();
+      if (!name) { alert("Please enter a playlist name."); return; }
+      const playlists = getStoredPlaylists();
+      playlists[name] = { categoryData: categoryData, mainCats: MAIN_CATS };
+      localStorage.setItem('church_prompter_playlists', JSON.stringify(playlists));
+      input.value = '';
+      alert(`Playlist "${name}" saved!`);
+    }
+
+    function openLibraryView() { showView('playlists-view'); renderSavedPlaylists(); }
+
+    function loadPlaylist(name) {
+      const playlists = getStoredPlaylists();
+      if (playlists[name]) {
+        categoryData = playlists[name].categoryData || categoryData;
+        if (playlists[name].mainCats) MAIN_CATS = playlists[name].mainCats;
+        autoSaveActiveState();
+        buildSetupUI();
+        showView('setup-view');
+        alert(`Playlist "${name}" loaded!`);
+      }
+    }
+
+    function sharePlaylist(name) {
+      const playlists = getStoredPlaylists();
+      const playlistToShare = playlists[name];
+      if (!playlistToShare) return;
+
+      const cleanData = {};
+      Object.keys(playlistToShare.categoryData || {}).forEach(catId => {
+        const subMap = playlistToShare.categoryData[catId];
+        const activeSubs = {};
+        let hasData = false;
+        Object.keys(subMap || {}).forEach(subId => {
+          if (subMap[subId] && subMap[subId].trim().length > 0) {
+            activeSubs[subId] = subMap[subId].trim();
+            hasData = true;
+          }
+        });
+        if (hasData) cleanData[catId] = activeSubs;
+      });
+
+      const payload = { n: name, d: cleanData };
+
+      try {
+        const jsonStr = JSON.stringify(payload);
+        const encoded = encodeURIComponent(jsonStr);
+        const shareUrl = `${window.location.origin}${window.location.pathname}?p=${encoded}`;
+
+        if (navigator.share) {
+          navigator.share({ title: `Playlist: ${name}`, text: `Open playlist "${name}":`, url: shareUrl }).catch(() => {});
+        } else {
+          navigator.clipboard.writeText(shareUrl).then(() => alert(`Link copied!`)).catch(() => prompt("Copy share link:", shareUrl));
+        }
+      } catch (err) {
+        alert("Could not generate share link.");
+      }
+    }
+
+    function handleSharedImport() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramData = urlParams.get('p') || urlParams.get('data');
+      if (!paramData) return;
+
+      try {
+        let decoded = decodeURIComponent(paramData);
+        let payload = JSON.parse(decoded);
+        const playlistName = payload.n || payload.name || "Shared Playlist";
+        const incomingData = payload.d || payload.categoryData;
+
+        if (incomingData) {
+          const playlists = getStoredPlaylists();
+          const fullData = {};
+          MAIN_CATS.forEach(cat => {
+            fullData[cat.id] = {};
+            SUB_SECTIONS.forEach(sub => {
+              fullData[cat.id][sub.id] = (incomingData[cat.id] && incomingData[cat.id][sub.id]) || "";
+            });
+          });
+
+          playlists[playlistName] = { categoryData: fullData, mainCats: MAIN_CATS };
+          localStorage.setItem('church_prompter_playlists', JSON.stringify(playlists));
+          categoryData = fullData;
+          autoSaveActiveState();
+
+          window.history.replaceState({}, document.title, window.location.pathname);
+          buildSetupUI();
+          renderSavedPlaylists();
+          alert(`Successfully imported "${playlistName}"!`);
+        }
+      } catch (err) {
+        alert("Could not parse shared link data.");
+      }
+    }
+
+    function deletePlaylist(name) {
+      if (confirm(`Delete playlist "${name}"?`)) {
+        const playlists = getStoredPlaylists();
+        delete playlists[name];
+        localStorage.setItem('church_prompter_playlists', JSON.stringify(playlists));
+        renderSavedPlaylists();
+      }
+    }
+
+    function renderSavedPlaylists() {
+      const container = document.getElementById('saved-playlists-list');
+      if (!container) return;
+      const playlists = getStoredPlaylists();
+      const searchTerm = (document.getElementById('library-search-input')?.value || '').toLowerCase().trim();
+      const keys = Object.keys(playlists).filter(key => key.toLowerCase().includes(searchTerm));
+
+      if (keys.length === 0) {
+        container.innerHTML = `<div style="font-size:0.85rem; color:#8b949e; text-align:center; padding:2rem;">No matching playlists found.</div>`;
+        return;
+      }
+
+      container.innerHTML = keys.map(key => `
+        <div class="saved-item-row">
+          <span class="saved-item-name">${key}</span>
+          <div class="saved-item-actions">
+            <button class="btn-item-load" onclick="loadPlaylist('${key}')">LOAD</button>
+            <button class="btn-item-share" onclick="sharePlaylist('${key}')">SHARE</button>
+            <button class="btn-item-delete" onclick="deletePlaylist('${key}')">DEL</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function buildLiveNavUI() {
+      const mainGroup = document.getElementById('main-btn-group');
+      mainGroup.innerHTML = '';
+      MAIN_CATS.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.id = `btn-main-${cat.id}`;
+        btn.className = 'bg-btn-right';
+        btn.innerHTML = `<span class="big-icon">${cat.icon}</span><span class="label-side">${cat.short}</span>`;
+        btn.onclick = () => selectPrimaryCategory(cat.id);
+        mainGroup.appendChild(btn);
+      });
+
+      const subGroup = document.getElementById('sub-btn-group');
+      subGroup.innerHTML = '';
+      SUB_SECTIONS.forEach(sub => {
+        const btn = document.createElement('button');
+        btn.id = `btn-sub-${sub.id}`;
+        btn.className = 'bg-btn-left';
+        btn.innerHTML = `<span class="label-side">${sub.id}</span><span class="big-icon">${sub.icon}</span>`;
+        btn.onclick = () => jumpToSubSection(sub.id);
+        subGroup.appendChild(btn);
+      });
+    }
+
+    function startPrompter() {
+      showView('stage-view');
+      selectPrimaryCategory(MAIN_CATS[0].id);
+    }
+
+    function selectPrimaryCategory(catId) {
+      if (transposeSteps !== 0) {
+        const mainObjOld = MAIN_CATS.find(c => c.id === activeMainId);
+        const catName = mainObjOld ? mainObjOld.name : 'Category';
+        if (confirm(`You transposed ${catName} by ${(transposeSteps > 0 ? '+' : '')}${transposeSteps}. Permanently convert chord text to this key?`)) {
+          applyLiveTransposeToCategoryText();
+        } else {
+          transposeSteps = 0;
+          document.getElementById('transpose-val-display').textContent = '0';
+        }
+      }
+
+      if (isPlaying) stopScrolling();
+
+      activeMainId = catId;
+      const mainObj = MAIN_CATS.find(c => c.id === activeMainId);
+      if (mainObj) {
+        currentSpeed = mainObj.speed;
+        document.getElementById('live-speed-num').value = currentSpeed;
+      }
+      document.querySelectorAll('.side-nav-right button').forEach(b => b.classList.remove('active'));
+      document.getElementById(`btn-main-${catId}`)?.classList.add('active');
+
+      loadAudioForCategory(catId);
+      renderCurrentCategoryText();
+      viewport.scrollTop = 0;
+      updateActiveSubIcon();
+    }
+
+    function renderCurrentCategoryText() {
+      const container = document.getElementById('display-container');
+      container.innerHTML = '';
+      const mainObj = MAIN_CATS.find(c => c.id === activeMainId);
+
+      SUB_SECTIONS.forEach(sub => {
+        const text = categoryData[activeMainId] ? categoryData[activeMainId][sub.id] : '';
+        if (text) {
+          const formattedText = formatTextWithChords(text, transposeSteps);
+          const block = document.createElement('div');
+          block.className = 'section-block';
+          block.id = `sec-block-${sub.id}`;
+          block.innerHTML = `
+            <div class="tag-container">
+              <span class="section-tag">${mainObj ? mainObj.name.toUpperCase() : ''}</span>
+              <span class="section-tag sub-tag">${sub.id}</span>
+            </div>
+            <div class="script-text">${formattedText}</div>
+          `;
+          container.appendChild(block);
+        }
+      });
+
+      if (container.children.length === 0) {
+        container.innerHTML = `<div class="section-block"><div class="script-text">[ Category is empty ]</div></div>`;
+      }
+    }
+
+    function jumpToSubSection(subId) {
+      const targetBlock = document.getElementById(`sec-block-${subId}`);
+      if (targetBlock) {
+        const targetPos = targetBlock.offsetTop - (window.innerHeight * 0.3);
+        viewport.scrollTop = Math.max(0, targetPos);
+      }
+      highlightSubButton(subId);
+    }
+
+    function highlightSubButton(subId) {
+      document.querySelectorAll('.side-nav-left button').forEach(b => b.classList.remove('active'));
+      document.getElementById(`btn-sub-${subId}`)?.classList.add('active');
+    }
+
+    function updateActiveSubIcon() {
+      let currentActiveId = null;
+      SUB_SECTIONS.forEach(sub => {
+        const block = document.getElementById(`sec-block-${sub.id}`);
+        if (block) {
+          const rect = block.getBoundingClientRect();
+          if (rect.top <= window.innerHeight * 0.6 && rect.bottom >= 0) {
+            currentActiveId = sub.id;
+          }
+        }
+      });
+      if (currentActiveId) highlightSubButton(currentActiveId);
+    }
+
+    function changeSpeed(delta) { setDirectSpeed(currentSpeed + delta); }
+
+    function setDirectSpeed(val) {
+      currentSpeed = Math.max(1, Math.min(200, parseInt(val) || 30));
+      document.getElementById('live-speed-num').value = currentSpeed;
+      const mainObj = MAIN_CATS.find(c => c.id === activeMainId);
+      if (mainObj) mainObj.speed = currentSpeed;
+      if (isPlaying) startScrolling();
+    }
+
+    function startScrolling() {
+      if (scrollInterval) clearInterval(scrollInterval);
+      isPlaying = true;
+
+      const intervalDelay = Math.max(5, Math.floor(1000 / currentSpeed));
+      scrollInterval = setInterval(() => {
+        viewport.scrollTop += 1;
+        updateActiveSubIcon();
+      }, intervalDelay);
+    }
+
+    function stopScrolling() {
+      isPlaying = false;
+      if (scrollInterval) clearInterval(scrollInterval);
+    }
+
+    function togglePlay() {
+      if (isPlaying) stopScrolling();
+      else startScrolling();
+    }
+
+    function stopPrompter() {
+      stopScrolling();
+      audioPlayer.pause();
+      if (transposeSteps !== 0) {
+        const mainObj = MAIN_CATS.find(c => c.id === activeMainId);
+        const catName = mainObj ? mainObj.name : 'Category';
+        if (confirm(`You transposed ${catName} by ${(transposeSteps > 0 ? '+' : '')}${transposeSteps}. Permanently convert chord text to this key?`)) {
+          applyLiveTransposeToCategoryText();
+        } else {
+          transposeSteps = 0;
+          document.getElementById('transpose-val-display').textContent = '0';
+        }
+      }
+      buildSetupUI();
+      showView('setup-view');
+    }
+
+    // PROMPTER GESTURES
+    viewport.addEventListener('touchstart', (e) => {
+      touchStartY = e.touches[0].clientY;
+      wasPlayingOnTouch = isPlaying;
+      isSwiping = false;
+      if (isPlaying) clearInterval(scrollInterval);
+    }, { passive: true });
+
+    viewport.addEventListener('touchmove', (e) => {
+      const deltaY = Math.abs(e.touches[0].clientY - touchStartY);
+      if (deltaY > 8) isSwiping = true;
+      updateActiveSubIcon();
+    }, { passive: true });
+
+    viewport.addEventListener('touchend', () => {
+      if (!isSwiping) {
+        togglePlay();
+      } else if (wasPlayingOnTouch) {
+        startScrolling();
+      }
+    });
+
+    viewport.addEventListener('scroll', () => { updateActiveSubIcon(); });
+
+    loadAutoSavedState();
+    buildSetupUI();
+    buildLiveNavUI();
+    handleSharedImport();
+  </script>
+</body>
+</html>
