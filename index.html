@@ -910,6 +910,8 @@
 
     // --- AUDIO MAPPING HELPERS ---
 
+// --- AUDIO MAPPING HELPERS ---
+
 function getAudioDesignations() {
   const map = {};
   if (Array.isArray(MAIN_CATS)) {
@@ -945,11 +947,59 @@ function applyAudioDesignations(audioMap) {
   }
 
   if (missingAudios.length > 0) {
-    alert(
-      'Notice: The loaded playlist expects local audio files that are missing on this device:\n\n' +
-      missingAudios.join('\n') +
-      '\n\nPlease re-assign or upload these audio files in the category setup.'
-    );
+    alert('Notice: Missing local audio files:\n\n' + missingAudios.join('\n') + '\n\nPlease re-upload these files in setup.');
+  }
+}
+
+// --- PLAYLIST STORAGE & LIMIT LOGIC ---
+
+function saveCurrentPlaylist() {
+  const nameInput = document.getElementById('playlist-name-input');
+  if (!nameInput) return;
+
+  const name = nameInput.value.trim();
+  if (!name) {
+    alert('Please enter a valid playlist name.');
+    return;
+  }
+
+  const library = getStoredPlaylists();
+  const existingNames = Object.keys(library);
+
+  if (!library[name] && existingNames.length >= 20) {
+    alert('Library is full (maximum 20 playlists). Please delete some playlists from your library to make space.');
+    return;
+  }
+
+  library[name] = {
+    categoryData: typeof categoryData !== 'undefined' ? categoryData : {},
+    mainCats: typeof MAIN_CATS !== 'undefined' ? MAIN_CATS : [],
+    audioDesignations: getAudioDesignations(),
+    timestamp: Date.now()
+  };
+
+  try {
+    localStorage.setItem('church_prompter_playlists', JSON.stringify(library));
+    nameInput.value = '';
+    alert(`Playlist "${name}" saved!`);
+  } catch (e) {
+    alert('Storage error: Could not save playlist. Please delete some playlists to make space.');
+  }
+}
+
+function loadPlaylist(name) {
+  const library = getStoredPlaylists();
+  if (library[name]) {
+    if (library[name].categoryData) categoryData = library[name].categoryData;
+    if (library[name].mainCats) MAIN_CATS = library[name].mainCats;
+
+    if (library[name].audioDesignations) {
+      applyAudioDesignations(library[name].audioDesignations);
+    }
+
+    if (typeof autoSaveActiveState === 'function') autoSaveActiveState();
+    if (typeof buildSetupUI === 'function') buildSetupUI();
+    if (typeof showView === 'function') showView('setup-view');
   }
 }
 
