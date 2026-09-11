@@ -908,30 +908,102 @@
       catch (e) { return {}; }
     }
 
-    function saveCurrentPlaylist() {
-      const input = document.getElementById('playlist-name-input');
-      const name = input.value.trim();
-      if (!name) { alert("Please enter a playlist name."); return; }
-      const playlists = getStoredPlaylists();
-      playlists[name] = { categoryData: categoryData, mainCats: MAIN_CATS };
-      localStorage.setItem('church_prompter_playlists', JSON.stringify(playlists));
-      input.value = '';
-      alert(`Playlist "${name}" saved!`);
-    }
+    // --- AUDIO MAPPING HELPERS ---
 
-    function openLibraryView() { showView('playlists-view'); renderSavedPlaylists(); }
-
-    function loadPlaylist(name) {
-      const playlists = getStoredPlaylists();
-      if (playlists[name]) {
-        categoryData = playlists[name].categoryData || categoryData;
-        if (playlists[name].mainCats) MAIN_CATS = playlists[name].mainCats;
-        autoSaveActiveState();
-        buildSetupUI();
-        showView('setup-view');
-        alert(`Playlist "${name}" loaded!`);
+function getAudioDesignations() {
+  const map = {};
+  if (Array.isArray(MAIN_CATS)) {
+    MAIN_CATS.forEach(cat => {
+      if (cat && (cat.audioFileName || cat.audioKey)) {
+        map[cat.id] = {
+          fileName: cat.audioFileName || '',
+          key: cat.audioKey || ''
+        };
       }
+    });
+  }
+  return map;
+}
+
+function applyAudioDesignations(audioMap) {
+  if (!audioMap || typeof audioMap !== 'object') return;
+
+  const missingAudios = [];
+
+  if (Array.isArray(MAIN_CATS)) {
+    MAIN_CATS.forEach(cat => {
+      if (cat && audioMap[cat.id]) {
+        cat.audioFileName = audioMap[cat.id].fileName;
+        cat.audioKey = audioMap[cat.id].key;
+
+        const existsInStorage = !!localStorage.getItem(`audio_track_${cat.audioKey}`);
+        if (!existsInStorage && cat.audioFileName) {
+          missingAudios.push(`• Category "${cat.name}": ${cat.audioFileName}`);
+        }
+      }
+    });
+  }
+
+  if (missingAudios.length > 0) {
+    alert(
+      'Notice: The loaded playlist expects local audio files that are missing on this device:\n\n' +
+      missingAudios.join('\n') +
+      '\n\nPlease re-assign or upload these audio files in the category setup.'
+    );
+  }
+}
+
+// --- PLAYLIST STORAGE & LIMIT LOGIC ---
+
+function saveCurrentPlaylist() {
+  const nameInput = document.getElementById('playlist-name-input');
+  if (!nameInput) return;
+
+  const name = nameInput.value.trim();
+  if (!name) {
+    alert('Please enter a valid playlist name.');
+    return;
+  }
+
+  const library = getStoredPlaylists();
+  const existingNames = Object.keys(library);
+
+  if (!library[name] && existingNames.length >= 20) {
+    alert('Library is full (maximum 20 playlists). Please delete some playlists from your library to make space.');
+    return;
+  }
+
+  library[name] = {
+    categoryData: typeof categoryData !== 'undefined' ? categoryData : {},
+    mainCats: typeof MAIN_CATS !== 'undefined' ? MAIN_CATS : [],
+    audioDesignations: getAudioDesignations(),
+    timestamp: Date.now()
+  };
+
+  try {
+    localStorage.setItem('church_prompter_playlists', JSON.stringify(library));
+    nameInput.value = '';
+    alert(`Playlist "${name}" saved!`);
+  } catch (e) {
+    alert('Storage error: Could not save playlist. Please delete some playlists to make space.');
+  }
+}
+
+function loadPlaylist(name) {
+  const library = getStoredPlaylists();
+  if (library[name]) {
+    if (library[name].categoryData) categoryData = library[name].categoryData;
+    if (library[name].mainCats) MAIN_CATS = library[name].mainCats;
+
+    if (library[name].audioDesignations) {
+      applyAudioDesignations(library[name].audioDesignations);
     }
+
+    if (typeof autoSaveActiveState === 'function') autoSaveActiveState();
+    if (typeof buildSetupUI === 'function') buildSetupUI();
+    if (typeof showView === 'function') showView('setup-view');
+  }
+}
 
     function sharePlaylist(name) {
       const playlists = getStoredPlaylists();
